@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DashboardNavbar } from "@/components/dashboard-navbar";
 import { useAuthStore } from "@/store/authStore";
 import { useReviewStore } from "@/store/reviewStore";
-import { useApproveReview, useRejectReview } from '@/hooks/api';
 import { useRouter } from "next/navigation";
 import {
   Star,

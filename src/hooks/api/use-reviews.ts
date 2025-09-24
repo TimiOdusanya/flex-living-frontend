@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reviewsService, ReviewQueryParams, ReviewApprovalData } from '@/services/reviews.service';
-import { ApiError } from '@/types/api';
+import { ApiError, ApiResponse } from '@/types/api';
+import { NormalizedReview } from '@/types';
 
 // Query keys for review-related queries
 export const reviewKeys = {
@@ -96,7 +97,7 @@ export function useApproveReview() {
       // Optimistically update the specific review
       queryClient.setQueryData(
         reviewKeys.detail(variables.reviewId),
-        (oldData: any) => {
+        (oldData: ApiResponse<NormalizedReview> | undefined) => {
           if (oldData?.success && oldData.data) {
             return {
               ...oldData,
@@ -130,7 +131,7 @@ export function useRejectReview() {
       queryClient.invalidateQueries({ queryKey: reviewKeys.all });
       queryClient.setQueryData(
         reviewKeys.detail(variables.reviewId),
-        (oldData: any) => {
+        (oldData: ApiResponse<NormalizedReview> | undefined) => {
           if (oldData?.success && oldData.data) {
             return {
               ...oldData,

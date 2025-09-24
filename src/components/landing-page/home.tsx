@@ -10,14 +10,11 @@ import {
   Star, 
   MapPin, 
   Shield, 
-  ArrowRight,
   Home,
   BookOpen,
-  Building,
   Telescope
 } from 'lucide-react';
 import Link from 'next/link';
-import Footer from '@/components/footer';
 import Locations from './locations';
 
 export default function HomePage() {

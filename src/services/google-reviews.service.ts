@@ -6,6 +6,7 @@ export interface GooglePlaceSearchParams {
   query: string;
   location?: string;
   radius?: number;
+  [key: string]: unknown;
 }
 
 export interface GooglePlaceDetails {

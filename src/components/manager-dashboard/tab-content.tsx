@@ -37,7 +37,6 @@ const TabContent = ({
   handleFilterChange,
   handleApproveReview,
   handleRejectReview,
-  filteredReviews,
   filters,
   loading,
   stats,
