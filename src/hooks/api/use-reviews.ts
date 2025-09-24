@@ -21,7 +21,7 @@ export function useReviews(params: ReviewQueryParams = {}) {
   return useQuery({
     queryKey: reviewKeys.list(params),
     queryFn: () => reviewsService.getReviews(params),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -43,7 +43,7 @@ export function useApprovedReviews(propertyId?: string) {
   return useQuery({
     queryKey: [...reviewKeys.all, 'approved', propertyId],
     queryFn: () => reviewsService.getApprovedReviews(propertyId),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -54,7 +54,7 @@ export function usePendingReviews() {
   return useQuery({
     queryKey: [...reviewKeys.all, 'pending'],
     queryFn: () => reviewsService.getPendingReviews(),
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 1 * 60 * 1000,
   });
 }
 
@@ -92,9 +92,16 @@ export function useApproveReview() {
     mutationFn: ({ reviewId, reason }: { reviewId: number; reason?: string }) =>
       reviewsService.approveReview(reviewId, reason),
     onSuccess: (_, variables) => {
-      // Invalidate all review queries to refetch updated data
+      
       queryClient.invalidateQueries({ queryKey: reviewKeys.all });
-      // Optimistically update the specific review
+      
+
+      queryClient.invalidateQueries({ 
+        queryKey: [...reviewKeys.all, 'approved'],
+        exact: false 
+      });
+      
+
       queryClient.setQueryData(
         reviewKeys.detail(variables.reviewId),
         (oldData: ApiResponse<NormalizedReview> | undefined) => {
@@ -107,6 +114,62 @@ export function useApproveReview() {
                 status: 'published' as const,
               },
             };
+          }
+          return oldData;
+        }
+      );
+
+
+      queryClient.setQueriesData(
+        { queryKey: reviewKeys.lists() },
+        (oldData: ApiResponse<NormalizedReview[]> | undefined) => {
+          if (oldData?.success && oldData.data) {
+            return {
+              ...oldData,
+              data: oldData.data.map(review => 
+                review.id === variables.reviewId 
+                  ? { ...review, isApproved: true, status: 'published' as const }
+                  : review
+              ),
+            };
+          }
+          return oldData;
+        }
+      );
+
+
+      queryClient.setQueriesData(
+        { queryKey: [...reviewKeys.all, 'approved'], exact: false },
+        (oldData: ApiResponse<NormalizedReview[]> | undefined) => {
+          if (oldData?.success && oldData.data) {
+     
+            const existingReview = oldData.data.find(review => review.id === variables.reviewId);
+            if (!existingReview) {
+            
+              const allReviewsQueries = queryClient.getQueriesData({ queryKey: reviewKeys.lists() });
+              let fullReview: NormalizedReview | null = null;
+              
+              for (const [, queryData] of allReviewsQueries) {
+                if (queryData && typeof queryData === 'object' && 'data' in queryData) {
+                  const reviewsData = queryData as ApiResponse<NormalizedReview[]>;
+                  if (reviewsData.success && reviewsData.data) {
+                    const review = reviewsData.data.find(r => r.id === variables.reviewId);
+                    if (review) {
+                      fullReview = review;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              if (fullReview) {
+                const updatedReview = { ...fullReview, isApproved: true, status: 'published' as const };
+                return {
+                  ...oldData,
+                  data: [...oldData.data, updatedReview],
+                };
+              }
+            }
           }
           return oldData;
         }
@@ -129,6 +192,14 @@ export function useRejectReview() {
       reviewsService.rejectReview(reviewId, reason),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.all });
+      
+  
+      queryClient.invalidateQueries({ 
+        queryKey: [...reviewKeys.all, 'approved'],
+        exact: false 
+      });
+      
+  
       queryClient.setQueryData(
         reviewKeys.detail(variables.reviewId),
         (oldData: ApiResponse<NormalizedReview> | undefined) => {
@@ -140,6 +211,24 @@ export function useRejectReview() {
                 isApproved: false,
                 status: 'rejected' as const,
               },
+            };
+          }
+          return oldData;
+        }
+      );
+
+   
+      queryClient.setQueriesData(
+        { queryKey: reviewKeys.lists() },
+        (oldData: ApiResponse<NormalizedReview[]> | undefined) => {
+          if (oldData?.success && oldData.data) {
+            return {
+              ...oldData,
+              data: oldData.data.map(review => 
+                review.id === variables.reviewId 
+                  ? { ...review, isApproved: false, status: 'rejected' as const }
+                  : review
+              ),
             };
           }
           return oldData;
@@ -176,6 +265,6 @@ export function useDashboardStats() {
   return useQuery({
     queryKey: reviewKeys.stats(),
     queryFn: () => reviewsService.getDashboardStats(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }

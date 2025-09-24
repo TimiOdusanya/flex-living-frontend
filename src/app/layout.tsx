@@ -19,6 +19,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Flex Living - Reviews Management Platform",
   description: "Professional reviews management platform for property managers",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/images/flex_logo.webp', sizes: '32x32', type: 'image/webp' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: { url: '/favicon.svg', type: 'image/svg+xml' },
+    shortcut: { url: '/favicon.ico' }
+  }
 };
 
 export default function RootLayout({

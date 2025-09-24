@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardNavbar } from "@/components/dashboard-navbar";
 import { useAuthStore } from "@/store/authStore";
-import { useReviewStore } from "@/store/reviewStore";
+import { useApproveReview, useRejectReview, useReviews, useDashboardStats } from '@/hooks/api';
 import { useRouter } from "next/navigation";
 import {
   Star,
@@ -21,97 +21,109 @@ import {
   Download,
   Globe,
 } from "lucide-react";
-import { ReviewFilters } from "@/types";
+import { NormalizedReview } from "@/types";
+import { ReviewQueryParams } from "@/services/reviews.service";
 import TabContent from "@/components/manager-dashboard/tab-content";
-import { reviewApi } from "@/lib/api";
 
 export default function ManagerDashboard() {
   const { user } = useAuthStore();
-  const {
-    reviews,
-    stats,
-    filters,
-    loading,
-    setReviews,
-    setStats,
-    setFilters,
-    setLoading,
-    updateReview,
-  } = useReviewStore();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTab, setSelectedTab] = useState("overview");
+  const [filters, setFilters] = useState<ReviewQueryParams>({});
+  const [approvingReviews, setApprovingReviews] = useState<Set<number>>(new Set());
+  const [rejectingReviews, setRejectingReviews] = useState<Set<number>>(new Set());
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [reviewsResponse, statsResponse] = await Promise.all([
-        reviewApi .getReviews(filters),
-        reviewApi.getDashboardStats(),
-      ]);
+  const { data: reviewsResponse, isLoading: reviewsLoading, error: reviewsError, refetch: refetchReviews } = useReviews(filters);
+  const { data: statsResponse, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
 
-      if (reviewsResponse.success && reviewsResponse.data) {
-        setReviews(reviewsResponse.data);
-      }
+  const reviews = reviewsResponse?.data || [];
+  const stats = statsResponse?.data;
 
-      if (statsResponse.success && statsResponse.data) {
-        setStats(statsResponse.data);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, setLoading, setReviews, setStats]);
+  const approveReviewMutation = useApproveReview();
+  const rejectReviewMutation = useRejectReview();
 
   useEffect(() => {
     if (!user) {
       router.push("/manager/login");
       return;
     }
-    loadData();
-  }, [user, router, loadData]);
+  }, [user, router]);
 
   const handleApproveReview = async (reviewId: number) => {
     try {
-      const response = await reviewApi.approveReview(reviewId);
-      if (response.success) {
-        updateReview(reviewId, { isApproved: true });
-        // Refetch data to get updated state
-        loadData();
-      }
+      setApprovingReviews(prev => new Set(prev).add(reviewId));
+      await approveReviewMutation.mutateAsync({ reviewId });
+      refetchReviews();
     } catch (error) {
       console.error("Error approving review:", error);
+    } finally {
+      setApprovingReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
     }
   };
 
   const handleRejectReview = async (reviewId: number) => {
     try {
-      const response = await reviewApi.rejectReview(reviewId);
-      if (response.success) {
-        updateReview(reviewId, { isApproved: false });
-        // Refetch data to get updated state
-        loadData();
-      }
+      setRejectingReviews(prev => new Set(prev).add(reviewId));
+      await rejectReviewMutation.mutateAsync({ reviewId });
+      refetchReviews();
     } catch (error) {
       console.error("Error rejecting review:", error);
+    } finally {
+      setRejectingReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
     }
   };
 
-  const handleFilterChange = (newFilters: Partial<ReviewFilters>) => {
+  const handleFilterChange = (newFilters: Partial<ReviewQueryParams>) => {
     setFilters({ ...filters, ...newFilters });
-    loadData();
+   
   };
 
   const filteredReviews = reviews.filter(
-    (review) =>
+    (review: NormalizedReview) =>
       review.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.listingName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.publicReview.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const loading = reviewsLoading || statsLoading;
+  const error = reviewsError || statsError;
+
   if (!user) {
     return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">Unable to fetch dashboard data. Please try again.</p>
+          <Button onClick={() => { refetchReviews(); refetchStats(); }}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -347,8 +359,8 @@ export default function ManagerDashboard() {
           filteredReviews={filteredReviews}
           filters={filters}
           loading={loading}
-          setLoading={setLoading}
-          updateReview={updateReview}
+          setLoading={() => {}}
+          updateReview={() => {}}
           stats={stats || {
             totalReviews: 0,
             approvedReviews: 0,
@@ -359,7 +371,9 @@ export default function ManagerDashboard() {
             topPerformingProperties: [],
             ratingDistribution: [],
           }}
-          reviews={reviews}
+          reviews={filteredReviews}
+          approvingReviews={approvingReviews}
+          rejectingReviews={rejectingReviews}
         />
       </div>
     </div>

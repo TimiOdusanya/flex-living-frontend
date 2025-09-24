@@ -41,6 +41,8 @@ const TabContent = ({
   loading,
   stats,
   reviews,
+  approvingReviews = new Set(),
+  rejectingReviews = new Set(),
 }: {
   selectedTab: string;
   handleFilterChange: (newFilters: Partial<ReviewFilters>) => void;
@@ -53,6 +55,8 @@ const TabContent = ({
   stats: DashboardStats;
   setLoading: (loading: boolean) => void;
   updateReview: (reviewId: number, review: NormalizedReview) => void;
+  approvingReviews?: Set<number>;
+  rejectingReviews?: Set<number>;
 }) => {
   return (
     <AnimatePresence mode="wait">
@@ -367,23 +371,78 @@ const TabContent = ({
                         </div>
 
                         <div className="flex items-center space-x-2 ml-4">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveReview(review.id)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRejectReview(review.id)}
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Reject
-                          </Button>
+                          {review.isApproved ? (
+                            <>
+                              <div className="flex items-center space-x-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium mr-2">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Approved
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectReview(review.id)}
+                                disabled={approvingReviews.has(review.id) || rejectingReviews.has(review.id)}
+                                className="border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {rejectingReviews.has(review.id) ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                )}
+                                {rejectingReviews.has(review.id) ? 'Disapproving...' : 'Disapprove'}
+                              </Button>
+                            </>
+                          ) : review.status === 'rejected' ? (
+                            <>
+                              <div className="flex items-center space-x-2 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium mr-2">
+                                <XCircle className="h-4 w-4" />
+                                Rejected
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveReview(review.id)}
+                                disabled={approvingReviews.has(review.id) || rejectingReviews.has(review.id)}
+                                className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {approvingReviews.has(review.id) ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                )}
+                                {approvingReviews.has(review.id) ? 'Approving...' : 'Approve'}
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveReview(review.id)}
+                                disabled={approvingReviews.has(review.id) || rejectingReviews.has(review.id)}
+                                className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {approvingReviews.has(review.id) ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                )}
+                                {approvingReviews.has(review.id) ? 'Approving...' : 'Approve'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectReview(review.id)}
+                                disabled={approvingReviews.has(review.id) || rejectingReviews.has(review.id)}
+                                className="border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {rejectingReviews.has(review.id) ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                )}
+                                {rejectingReviews.has(review.id) ? 'Rejecting...' : 'Reject'}
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </motion.div>
