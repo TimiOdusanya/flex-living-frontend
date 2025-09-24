@@ -9,8 +9,15 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    const isProduction = typeof window !== 'undefined' && 
+      window.location.hostname === 'flex-living-frontend-timi.vercel.app';
+    
+    const baseURL = isProduction
+      ? 'https://flex-living-backend-h8cx.onrender.com/api'
+      : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+      baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
